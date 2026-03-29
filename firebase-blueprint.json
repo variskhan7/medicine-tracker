@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "Member": {
+      "title": "Member",
+      "description": "A family member being tracked",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name" },
+        "relation": { "type": "string", "description": "Relation to the user" },
+        "age": { "type": "integer", "description": "Age of the member" }
+      },
+      "required": ["name", "relation", "age"]
+    },
+    "Medicine": {
+      "title": "Medicine",
+      "description": "A medicine prescribed to a member",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the medicine" },
+        "dosage": { "type": "string", "description": "Dosage amount" },
+        "frequency": { "type": "string", "description": "Frequency of intake" },
+        "memberId": { "type": "string", "description": "ID of the assigned member" },
+        "expiryDate": { "type": "string", "format": "date", "description": "Expiry date of the medicine" }
+      },
+      "required": ["name", "dosage", "frequency", "memberId", "expiryDate"]
+    },
+    "Log": {
+      "title": "Log",
+      "description": "A log entry for a medicine dose",
+      "type": "object",
+      "properties": {
+        "medicineId": { "type": "string", "description": "ID of the medicine" },
+        "date": { "type": "string", "format": "date", "description": "Date of the log (YYYY-MM-DD)" },
+        "status": { "type": "string", "enum": ["taken", "skipped", "pending"], "description": "Status of the dose" },
+        "takenAt": { "type": "string", "format": "date-time", "description": "Timestamp when taken" }
+      },
+      "required": ["medicineId", "date", "status"]
+    }
+  },
+  "firestore": {
+    "/members/{memberId}": { "schema": "Member", "description": "Collection of family members" },
+    "/medicines/{medicineId}": { "schema": "Medicine", "description": "Collection of medicines" },
+    "/logs/{logId}": { "schema": "Log", "description": "Collection of medicine logs" }
+  }
+}

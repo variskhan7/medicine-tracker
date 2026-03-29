@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: members
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - relation: string (required, 1-50 chars)
+    //   - age: number (required, 0-150)
+    //   - ownerId: string (required, auth.uid)
+    //
+    // Collection: medicines
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - dosage: string (required, 1-50 chars)
+    //   - frequency: string (required, 1-50 chars)
+    //   - memberId: string (required, FK to members)
+    //   - expiryDate: string (required, ISO 8601)
+    //   - ownerId: string (required, auth.uid)
+    //
+    // Collection: logs
+    // Document ID: auto-generated
+    // Fields:
+    //   - medicineId: string (required, FK to medicines)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - status: string (required, enum: taken, skipped, pending)
+    //   - takenAt: string (optional, ISO 8601)
+    //   - ownerId: string (required, auth.uid)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidString(field, min, max) {
+      return request.resource.data[field] is string && 
+             request.resource.data[field].size() >= min && 
+             request.resource.data[field].size() <= max;
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidMember(data) {
+      return hasRequiredFields(['name', 'relation', 'age', 'ownerId']) &&
+             hasOnlyAllowedFields(['name', 'relation', 'age', 'ownerId']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.relation is string && data.relation.size() > 0 && data.relation.size() <= 50 &&
+             data.age is number && data.age >= 0 && data.age <= 150 &&
+             data.ownerId == request.auth.uid;
+    }
+
+    function isValidMedicine(data) {
+      return hasRequiredFields(['name', 'dosage', 'frequency', 'memberId', 'expiryDate', 'ownerId']) &&
+             hasOnlyAllowedFields(['name', 'dosage', 'frequency', 'memberId', 'expiryDate', 'ownerId']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.dosage is string && data.dosage.size() > 0 && data.dosage.size() <= 50 &&
+             data.frequency is string && data.frequency.size() > 0 && data.frequency.size() <= 50 &&
+             data.memberId is string &&
+             isValidDateString(data.expiryDate) &&
+             data.ownerId == request.auth.uid;
+    }
+
+    function isValidLog(data) {
+      return hasRequiredFields(['medicineId', 'date', 'status', 'ownerId']) &&
+             hasOnlyAllowedFields(['medicineId', 'date', 'status', 'takenAt', 'ownerId']) &&
+             data.medicineId is string &&
+             isValidDateString(data.date) &&
+             data.status in ['taken', 'skipped', 'pending'] &&
+             data.ownerId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /members/{memberId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidMember(request.resource.data);
+      allow update: if isDocOwner() && isValidMember(request.resource.data);
+      allow delete: if isDocOwner();
+    }
+
+    match /medicines/{medicineId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidMedicine(request.resource.data);
+      allow update: if isDocOwner() && isValidMedicine(request.resource.data);
+      allow delete: if isDocOwner();
+    }
+
+    match /logs/{logId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidLog(request.resource.data);
+      allow update: if isDocOwner() && isValidLog(request.resource.data);
+      allow delete: if isDocOwner();
+    }
+  }
+}

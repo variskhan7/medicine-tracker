@@ -1,0 +1,5 @@
+{
+  "name": "MedTrack Family",
+  "description": "A shared family medicine dashboard to track dosages, expiry dates, and daily adherence.",
+  "requestFramePermissions": []
+}
